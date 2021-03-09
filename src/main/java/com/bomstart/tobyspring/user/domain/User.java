@@ -1,8 +1,13 @@
 package com.bomstart.tobyspring.user.domain;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class User {
+    @JsonProperty
     String id;
+    @JsonProperty
     String name;
+    @JsonProperty
     String password;
 
     public String getId() {
