@@ -13,12 +13,12 @@ public class UserController {
     UserServiceImpl userService;
 
     @PostMapping("/create")
-    public @ResponseBody void addUser(User user){
+    public void addUser(User user){
         userService.add(user);
     }
 
-    @PostMapping("/delete/{id}")
-    public @ResponseBody void removeUser(@PathVariable  String id){
+    @DeleteMapping("/delete/{id}")
+    public void removeUser(@PathVariable String id){
         userService.remove(id);
     }
 }
