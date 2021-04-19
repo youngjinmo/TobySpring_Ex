@@ -1,22 +1,22 @@
 package com.bomstart.tobyspring.user.dao;
 
 import com.bomstart.tobyspring.user.domain.User;
+import com.bomstart.tobyspring.user.domain.UserMapper;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.List;
 
 @Component
 public class UserDaoImpl implements UserDao{
-    DataSource dataSource;
+    JdbcTemplate jdbcTemplate;
 
     public UserDaoImpl(DataSource dataSource) {
-        this.dataSource = dataSource;
+        this.jdbcTemplate = new JdbcTemplate(dataSource);
     }
 
     /**
@@ -26,27 +26,15 @@ public class UserDaoImpl implements UserDao{
      */
     @Override
     public User selectUser(String id) {
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-
+        String query = "SELECT id, name, password FROM user WHERE id = "+id;
         User user = null;
-
-        try (Connection conn = this.dataSource.getConnection();){
-            ps = conn.prepareStatement("SELECT id, name, password FROM user WHERE id = ? ");
-            ps.setString(1, id);
-
-            rs = ps.executeQuery();
-
-            if (rs.next()) {
-                user = new User(rs.getString(1), rs.getString(2), rs.getString(3));
-            }
-
-        } catch (SQLException e) {
+        try{
+            user = jdbcTemplate.queryForObject(query, new UserMapper());
+        } catch (EmptyResultDataAccessException e){
+            System.out.println("id = "+id+" 의 회원이 존재하지 않습니다.");
             e.printStackTrace();
-        } finally {
-            this.closeAll(ps, rs);
-            return user;
         }
+        return user;
     }
 
     /**
@@ -55,101 +43,46 @@ public class UserDaoImpl implements UserDao{
      */
     @Override
     public List<User> selectUsers() {
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-
-        List<User> users = new ArrayList<>();
-
-        try (Connection conn = this.dataSource.getConnection();){
-            ps = conn.prepareStatement("SELECT id, name, password FROM user");
-
-            rs = ps.executeQuery();
-
-            while(rs.next()) {
-                users.add(new User(rs.getString(1), rs.getString(2), rs.getString(3)));
-            }
-
-            return users;
-        } catch (SQLException e) {
-            e.printStackTrace();
-        } finally {
-            this.closeAll(ps, rs);
-            return users;
-        }
+        String query = "SELECT id, name, password FROM user";
+        return jdbcTemplate.query(query,new UserMapper());
     }
 
     /**
      *  유저 등록
      * @param user
+     * @return
      */
     @Override
     public void createUser(User user) {
-        PreparedStatement ps = null;
-
-        StringBuffer query = new StringBuffer("INSERT INTO user(id, name, password) VALUES(?,?,?)");
-        try(Connection conn = this.dataSource.getConnection();) {
-            ps = conn.prepareStatement(query.toString());
-            ps.setString(1,user.getId());
-            ps.setString(2,user.getName());
-            ps.setString(3,user.getPassword());
-            ps.executeUpdate();
-        } catch (SQLException e2){
-            e2.printStackTrace();
-        } finally {
-            this.closeAll(ps);
-        }
+        String query = "INSERT INTO user(id, name, password) VALUES ('"+user.getId()+"','"+user.getName()+"','"+user.getPassword()+"')";
+        jdbcTemplate.update(query);
     }
 
     /**
      * 유저 정보 수정
      * @param user
+     * @return
      */
     @Override
     public void updateUser(User user) {
-        PreparedStatement ps = null;
-
-        StringBuffer query = new StringBuffer();
-        query.append("UPDATE user SET ");
-        if (user.getName() != null)
-            query.append("name = ? ");
-        if (user.getPassword() != null)
-            query.append(", password = ? ");
-        query.append("WHERE id = ? ");
-
-        try (Connection conn = this.dataSource.getConnection();){
-            ps = conn.prepareStatement(query.toString());
-
-            int idx = 1;
-            if (user.getName() != null)
-                ps.setString(idx++, user.getName());
-            if (user.getPassword() != null)
-                ps.setString(idx++, user.getPassword());
-            ps.setString(idx, user.getId());
-
-            ps.executeUpdate();
-
-        } catch (SQLException e) {
+        String query =
+                "UPDATE user SET name = '"+user.getName()+"', password = '"+user.getPassword()+"' WHERE id = '"+user.getId()+"'";
+        try {
+            jdbcTemplate.update(query);
+        } catch(EmptyResultDataAccessException e){
+            System.out.println("수정하려고 하는 id = "+user.getId()+"의 회원이 존재하지 않습니다.");
             e.printStackTrace();
-        } finally {
-            this.closeAll(ps);
         }
     }
 
     @Override
     public void deleteUser(String id) {
-        PreparedStatement ps = null;
-
-        User user = selectUser(id);
-
-        StringBuffer query = new StringBuffer("DELETE FROM user WHERE id = ?");
-        try(Connection conn = this.dataSource.getConnection();) {
-            ps = conn.prepareStatement(query.toString());
-            ps.setString(1,user.getId());
-            ps.executeUpdate();
-        } catch (SQLException e){
+        String query = "DELETE user WHERE id = "+id;
+        try {
+            jdbcTemplate.update(query);
+        } catch(EmptyResultDataAccessException e){
+            System.out.println("삭제하고자 하는 id = "+id+"의 회원이 존재하지 않습니다.");
             e.printStackTrace();
-        } finally {
-            this.closeAll(ps);
         }
     }
 
@@ -163,7 +96,5 @@ public class UserDaoImpl implements UserDao{
 
     private void closeAll(PreparedStatement ps, ResultSet rs) {
         if (rs != null) try{rs.close();} catch(Exception e){}
-        if (ps != null) try{ps.close();} catch(Exception e){}
     }
-
 }
